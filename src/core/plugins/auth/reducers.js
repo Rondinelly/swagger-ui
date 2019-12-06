@@ -1,5 +1,6 @@
 import { fromJS, Map } from "immutable"
 import { btoa } from "core/utils"
+import { saveAuthorization } from "core/helpers/save-authorization"
 
 import {
   SHOW_AUTH_POPUP,
@@ -15,7 +16,8 @@ export default {
   },
 
   [AUTHORIZE]: (state, { payload } ) =>{
-    let securities = fromJS(payload)
+    let { auth, configs } = payload
+    let securities = fromJS(auth)
     let map = state.get("authorized") || Map()
 
     // refactor withMutations
@@ -24,6 +26,7 @@ export default {
 
       if ( type === "apiKey" || type === "http" ) {
         map = map.set(key, security)
+        saveAuthorization(configs, key, security.getIn(["value"]))
       } else if ( type === "basic" ) {
         let username = security.getIn(["value", "username"])
         let password = security.getIn(["value", "password"])
@@ -34,6 +37,7 @@ export default {
         })
 
         map = map.setIn([key, "schema"], security.get("schema"))
+        saveAuthorization(configs, key, password)
       }
     })
 
@@ -51,9 +55,12 @@ export default {
   },
 
   [LOGOUT]: (state, { payload } ) =>{
+    let { auths, configs } = payload
+
     let result = state.get("authorized").withMutations((authorized) => {
-        payload.forEach((auth) => {
+        auths.forEach((auth) => {
           authorized.delete(auth)
+          saveAuthorization(configs, auth, "")
         })
       })
 
